@@ -1,3 +1,4 @@
+.gitignore
 poetry.lock
 poetry.toml
 pyproject.toml
