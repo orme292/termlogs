@@ -30,8 +30,17 @@ def main():
         print("Range too high. Range cannot be higher than 24.")
         exit(0)
 
-    log_dir = config.get_session_logs_directory()
-    start_dt, end_dt = filter.build_time_range(args)
+    try:
+        log_dir = config.get_session_logs_directory()
+    except KeyError as e:
+        print(f"Key is missing from config file: {e}")
+        exit(0)
+
+    try:
+        start_dt, end_dt = filter.build_time_range(args)
+    except ValueError as e:
+        print(f"Invalid time value: {e}")
+        exit(0)
 
     files = scanner.list_matching_files(log_dir, start_dt)
 
