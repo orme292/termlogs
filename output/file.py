@@ -1,6 +1,7 @@
 import os
 import subprocess
 import tempfile
+from output.format import clean_line
 
 def output_to_file(results: dict, filename: str) -> None:
     is_temp = False
@@ -15,7 +16,8 @@ def output_to_file(results: dict, filename: str) -> None:
         for filepath, lines in results.items():
             f.write(f"\n=== {filepath} ===\n")
             for line in lines:
-                f.write(line + "\n")
+                cleaned = clean_line(line)
+                f.write(cleaned + "\n")
             f.write("\n\n")
 
     if is_temp:

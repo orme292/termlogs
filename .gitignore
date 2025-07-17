@@ -1,7 +1,0 @@
-.gitignore
-poetry.lock
-poetry.toml
-pyproject.toml
-.venv
-.idea
-__pycache__

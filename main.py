@@ -1,9 +1,9 @@
 import argparse
 from datetime import datetime
 
-import config
+from config import config
 from logparser import filter, parser
-import scanner
+from scanner import scanner
 from output import file as fo, screen
 
 NOW = datetime.now()
@@ -26,8 +26,8 @@ def parse_args() -> argparse.Namespace:
 
 def main():
     args = parse_args()
-    if args["range"] > 24:
-        print("Range too high. Range must be below 24 hours")
+    if args.range > 24:
+        print("Range too high. Range cannot be higher than 24.")
         exit(0)
 
     log_dir = config.get_session_logs_directory()
@@ -41,7 +41,7 @@ def main():
         if matches:
             results[file] = matches
 
-    if args["screen"]:
+    if args.screen:
         screen.output_by_group(results)
         exit(0)
 
