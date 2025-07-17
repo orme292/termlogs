@@ -7,10 +7,10 @@ from datetime import datetime, timedelta
 def parse_hour(hour_str: str) -> int:
     match = re.match(r"(\d{1,2})(AM|PM)", hour_str.upper())
     if not match:
-        raise ValueError(f"Invalid hour format: {hour_str}")
+        raise ValueError(f"Invalid hour format: {hour_str}, it should be like 12PM or 3AM")
     hour = int(match.group(1))
 
-    if match.group(2) == "PM":
+    if match.group(2) == "PM" and hour > 12:
         hour += 12
 
     return hour

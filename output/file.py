@@ -12,13 +12,17 @@ def output_to_file(results: dict, filename: str) -> None:
         file.close()
         is_temp = True
 
-    with open(filename, "w", encoding="utf-8") as f:
-        for filepath, lines in results.items():
-            f.write(f"\n=== {filepath} ===\n")
-            for line in lines:
-                cleaned = clean_line(line)
-                f.write(cleaned + "\n")
-            f.write("\n\n")
+    try:
+        with open(filename, "w", encoding="utf-8") as f:
+            for filepath, lines in results.items():
+                f.write(f"\n=== {filepath} ===\n")
+                for line in lines:
+                    cleaned = clean_line(line)
+                    f.write(cleaned + "\n")
+                f.write("\n\n")
+    except OSError as e:
+        print(f"Error creating and opening temp file: {e}")
+        exit(1)
 
     if is_temp:
         response = input("View results? [y/n] ").strip().lower()
