@@ -1,7 +1,7 @@
 import os
 import subprocess
 import tempfile
-from output.format import clean_line
+from ..output.format import clean_line
 
 def output_to_file(results: dict, filename: str) -> None:
     is_temp = False

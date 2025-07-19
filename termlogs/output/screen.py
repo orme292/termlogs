@@ -1,6 +1,6 @@
 import re
 
-from output.format import clean_line
+from ..output.format import clean_line
 
 DATETIME_RE = re.compile(r"\[(\d{2}/\d{2}/\d{4}, \d{1,2}:\d{2}:\d{2}\.\d{3} (?:AM|PM))]")
 ANSI_YELLOW = "\033[93m"
@@ -22,4 +22,4 @@ def output_by_group(results: dict) -> None:
         print("\n")
 
 def print_header() -> None:
-    print(f"\n{ANSI_GREEN}Termlogs{ANSI_WHITE} - iTerm Session Log Parser{ANSI_RESET}\n\n")
+    print(f"\n{ANSI_GREEN}Termlogs{ANSI_WHITE} - iTerm Session Log Parser{ANSI_RESET}\n")

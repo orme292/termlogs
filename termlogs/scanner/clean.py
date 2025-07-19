@@ -1,25 +1,25 @@
-import argparse
 import humanize
 import datetime
 from pathlib import Path
 from send2trash import send2trash
-from config import config
+from ..config import config
+from typing import Tuple
 
-def do(args: argparse.Namespace) -> None:
-    if not args.cleanup: return
+def do(max_mb: int, dir_: str="") -> None:
+    if max_mb <= 0: raise ValueError("Max size cannot be 0.")
+    log_path = get_session_log_path(dir_)
+    cleanup_logs(max_mb, log_path)
 
-    if args.max_mb <= 0: raise ValueError("Max size cannot be 0.")
-
-    check_and_cleanup_logs(args.max_mb)
-
-
-def check_and_cleanup_logs(max_size_mb):
-    log_dir = config.get_session_logs_directory()
+def get_session_log_path(dir_: str="") -> Path:
+    log_dir = config.get_session_logs_directory(dir_)
     log_path = Path(log_dir)
+    if not log_path.exists():
+        raise FileNotFoundError(f"Log dir does not exist: {log_dir}")
     if not log_path.is_dir():
         raise Exception(f"Error: {log_dir} is not a valid directory.")
+    return log_path
 
-    # Gather all `.log` files with their sizes and ctimes
+def gather_session_log_files(log_path: Path) -> Tuple[list, int]:
     files = []
     total_size = 0
     for f in log_path.iterdir():
@@ -34,17 +34,28 @@ def check_and_cleanup_logs(max_size_mb):
                 'ctime': ctime
             })
 
-    total_size_mb = total_size / (1024 * 1024)
-    print(f"Total .log files size: {humanize.naturalsize(total_size)} ({total_size_mb:.2f} MB)")
+    return files, total_size
+
+
+def check_dir_size(log_path: Path) -> float:
+    _, total_size_bytes = gather_session_log_files(log_path)
+    return total_size_bytes
+
+
+def cleanup_logs(max_size_mb: int, log_path: Path) -> None:
+    total_size_bytes = check_dir_size(log_path)
+    total_size_mb = total_size_bytes / (1024 * 1024)
+    print(f"Total session log files size: {humanize.naturalsize(total_size_bytes)} ({total_size_mb:.2f} MB)")
 
     if total_size_mb <= max_size_mb:
-        raise Exception(f".log files are under {max_size_mb} MB, no cleanup needed.")
+        raise Exception(f"Session log files are under {max_size_mb} MB, no cleanup needed.")
 
     proceed = input(f"Total size exceeds {max_size_mb} MB. Review and delete oldest files? [y/N]: ").strip().lower()
     if proceed != 'y':
         raise Exception("Cleanup cancelled.")
 
     # Sort files by creation time (oldest first)
+    files, _ = gather_session_log_files(log_path)
     files.sort(key=lambda x: x['ctime'])
 
     # Determine which files to delete until we meet the target
@@ -69,7 +80,12 @@ def check_and_cleanup_logs(max_size_mb):
         raise Exception("Cleanup cancelled.")
 
     for entry in files_to_delete:
-        send2trash(str(entry['path']))
+        try:
+            send2trash(str(entry['path']))
+        except Exception as e:
+            print(f"Error moving to trash: {entry['path']} - {e}")
+            continue
+
         print(f"Moved to trash: {entry['path']}")
 
     print("Cleanup complete.")
