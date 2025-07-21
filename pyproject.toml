@@ -1,0 +1,40 @@
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[project]
+name = "termlogs"
+version = "0.1.0"
+description = "A CLI tool to scan and analyze iTerm2 session logs."
+authors = [
+    { name = "orme292", email = "orme292@users.noreply.github.com" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Environment :: Console",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "humanize >=4.12.3,<5.0.0",
+    "send2trash >=1.8.3,<2.0.0",
+    "click >=8.2.1,<9.0.0",
+    "click-option-group (==0.5.7)",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/orme292/termlogs"
+"Repository" = "https://github.com/orme292/termlogs"
+"Bug Tracker" = "https://github.com/orme292/termlogs/issues"
+
+[tool.poetry]
+packages = [{ include = "termlogs" }]

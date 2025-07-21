@@ -5,12 +5,13 @@ from send2trash import send2trash
 from ..config import config
 from typing import Tuple
 
-def do(max_mb: int, dir_: str="") -> None:
-    if max_mb <= 0: raise ValueError("Max size cannot be 0.")
-    log_path = get_session_log_path(dir_)
-    cleanup_logs(max_mb, log_path)
 
-def get_session_log_path(dir_: str="") -> Path:
+def do(max_mb: int, dir_: str = "") -> None:
+    if max_mb <= 0: raise ValueError("Max size cannot be 0.")
+    cleanup_logs(max_mb, dir_)
+
+
+def get_session_log_path(dir_: str = "") -> Path:
     log_dir = config.get_session_logs_directory(dir_)
     log_path = Path(log_dir)
     if not log_path.exists():
@@ -18,6 +19,7 @@ def get_session_log_path(dir_: str="") -> Path:
     if not log_path.is_dir():
         raise Exception(f"Error: {log_dir} is not a valid directory.")
     return log_path
+
 
 def gather_session_log_files(log_path: Path) -> Tuple[list, int]:
     files = []

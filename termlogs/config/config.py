@@ -4,13 +4,14 @@ from pathlib import Path
 
 DEFAULT_LOG_DIR = "~/.termlogs"
 
-def get_session_logs_directory(override: str="") -> str:
+
+def get_session_logs_directory(override: str = "") -> str:
     # If an override is provided, use that instead of the config file
     if override != "":
         override = os.path.expanduser(override)
         log_path = Path(os.path.expanduser(override))
         if not log_path.is_dir():
-            raise Exception(f"Error: {log_path} is not a valid directory.")
+            raise Exception(f"{log_path} is not a valid directory.")
         print(f"Using session log directory: {override}")
         return override
 
@@ -26,7 +27,7 @@ def get_session_logs_directory(override: str="") -> str:
     try:
         log_path = Path(config["settings"]["session_logs_path"])
         if not log_path.is_dir():
-            raise FileNotFoundError(f"Error: {log_path} is not a valid directory.")
+            raise FileNotFoundError(f"{log_path} is not a valid directory.")
         return config["settings"]["session_logs_path"]
 
     except KeyError:
