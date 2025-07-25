@@ -123,34 +123,20 @@ def clean(max_mb: int, dir_: str) -> None:
 def string(dir_: str, string_: str, start: str, end: str, is_regex: bool, ignore_case: bool, screen: bool, ahead: int,
            behind: int, surround: int) -> None:
     if (ahead or behind) and surround:
-        print("Error: Cannot specify both --ahead and --behind or --surround.")
+        print("Error: Cannot specify both --ahead or --behind and --surround.")
         exit(0)
 
     log_dir = get_session_logs_directory(dir_)
 
-    try:
-        files = t.scanner.find_logs_by_date_range(log_dir, start, end)
-    except Exception as e:
-        print(f"Error: {e}")
-        exit(0)
+    if start != "" or end != "":
+        # build file list
+        print("start or end provided")
+    else:
+        # build file list without date range
+        print("start or end not provided")
 
-    if surround:
-        ahead = surround
-        behind = surround
-
-    results = t.str_match.search_logs(string_, is_regex, files, ignore_case, ahead=ahead, behind=behind, screen=screen)
-
-    if results is None or len(results) == 0:
-        print("No results found.")
-        exit(0)
-
-    if screen:
-        for each in results:
-            print("\n")
-            for line in each:
-                print(line)
-            print("\n")
-    exit(0)
+    print ("search files for results")
+    print ("output the results")
 
 if __name__ == "__main__":
     t.screen.print_header()
