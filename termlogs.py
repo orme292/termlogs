@@ -1,19 +1,21 @@
 import click
 from click_option_group import optgroup, RequiredMutuallyExclusiveOptionGroup
 from datetime import datetime
+from pathlib import Path
 from typing import Tuple
 
 import termlogs as t
+import termlogsx as tx
 
 NOW = datetime.now()
-
+DEFAULT_START = datetime(1970, 1, 1)
 
 @click.group()
 def cli() -> None:
     pass
 
 
-def get_session_logs_directory(dir_: str) -> str:
+def get_session_logs_directory(dir_: str) -> Path:
     try:
         log_dir = t.config.get_session_logs_directory(dir_)
     except KeyError as e:
@@ -104,14 +106,13 @@ def clean(max_mb: int, dir_: str) -> None:
         exit(0)
 
 
-@cli.command("string")
-@optgroup.group("Search options")
-@optgroup.option("-s", "--string", "string_", required=True, type=str, help="String or regex to search for")
-@optgroup.option("-r", "--is-regex", is_flag=True, help="Interpret string as a regex")
-@optgroup.option("-i", "--ignore-case", is_flag=True, help="Ignore case when searching for string.")
+@cli.command("grep", help="Search session logs for a given string or regex.")
+@click.option("-s", "--string", "string_", required=True, type=str, help="String or regex to search for")
+@click.option("-r", "--is-regex", is_flag=True, help="Interpret string as a regex")
+@click.option("-m", "--match-case", is_flag=True, help="Search is case-sensitive.")
 @optgroup.group("Date filter options")
-@optgroup.option("--start", type=str, help="Starting date. 07152025 (July 15, 2025)")
-@optgroup.option("--end", type=str, help="Ending date. 07162025 (July 16, 2025)")
+@optgroup.option("--start", type=str, help="Starting date. 07152025:5 (July 15, 2025, 5AM)")
+@optgroup.option("--end", type=str, help="Ending date. 07162025:13 (July 16, 2025, 1PM)")
 @optgroup.group("Output options")
 @optgroup.option("-l", "--screen", is_flag=True, help="Output to screen instead of temp file")
 @optgroup.group("Context options")
@@ -120,23 +121,55 @@ def clean(max_mb: int, dir_: str) -> None:
 @optgroup.option("--surround", type=int, default=0, help="Lines to show before and after result.")
 @optgroup.group("Directory options")
 @optgroup.option("--dir", "dir_", type=str, default="", help="Override session log directory")
-def string(dir_: str, string_: str, start: str, end: str, is_regex: bool, ignore_case: bool, screen: bool, ahead: int,
+def grep(dir_: str, string_: str, start: str, end: str, is_regex: bool, match_case: bool, screen: bool, ahead: int,
            behind: int, surround: int) -> None:
     if (ahead or behind) and surround:
         print("Error: Cannot specify both --ahead or --behind and --surround.")
         exit(0)
 
-    log_dir = get_session_logs_directory(dir_)
+    if is_regex and match_case:
+        print("-m/--match-case is ignored when using --is-regex/-r")
 
-    if start != "" or end != "":
-        # build file list
-        print("start or end provided")
-    else:
-        # build file list without date range
-        print("start or end not provided")
+    log_dir = tx.cfg.get_session_logs_path(dir_)
 
-    print ("search files for results")
-    print ("output the results")
+    try:
+        start_dt = tx.files.parse_cli_dt_input(start) if start else None
+        end_dt = tx.files.parse_cli_dt_input(end) if end else None
+    except Exception as e:
+        print(f"Error: {e}")
+        exit(0)
+
+    start_ts = (start_dt or DEFAULT_START).timestamp()
+    end_ts = (end_dt or NOW).timestamp()
+
+    try:
+        files = tx.files.find_logs(log_dir, start=start_ts, end=end_ts)
+    except ValueError as e:
+        print(f"Invalid data: {e}")
+        exit(0)
+    except Exception as e:
+        print(f"Generic Error: {e}")
+        exit(0)
+
+    if len(files) == 0:
+        print("No logs found in timeframe.")
+        exit(0)
+
+    print(f"Found {len(files)} matching files.\n")
+
+    results = tx.grep.grep_search(files, string_, start=start_ts, end=end_ts,
+                        ahead_buffer=ahead, behind_buffer=behind, is_regex=is_regex, match_case=match_case)
+
+    for file_path, matches in results.items():
+        print(f"\n=== {file_path} ===")
+        for match in matches:
+            print(f"--- Match {match['match_number']} ---")
+            for line in match["lines"]:
+                ts = line["timestamp"]
+                content = line["content"]
+                marker = ">>> MATCH <<<" if line.get("matched") else ""
+                print(f"[{ts}] {marker} {content}")
+
 
 if __name__ == "__main__":
     t.screen.print_header()

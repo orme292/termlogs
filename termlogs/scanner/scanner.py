@@ -5,7 +5,6 @@ from typing import List, Optional
 
 BASIC_DATE_FORMAT = "%m%d%Y"
 
-
 def parse_basic_date(date_str: str) -> datetime.date:
     try:
         new_date = datetime.strptime(date_str, BASIC_DATE_FORMAT).date()
@@ -18,6 +17,7 @@ def parse_basic_date(date_str: str) -> datetime.date:
 def find_logs_by_threshold(log_dir: str, start_dt: datetime, end_dt: datetime) -> list:
     start_ts = start_dt.timestamp()
     end_ts = end_dt.timestamp()
+
     files = []
 
     for each in os.listdir(log_dir):

@@ -1,9 +1,9 @@
 """
-config.py - Configuration management for the termlogs project
+config.py - Configuration management for the Termlogs project
 
 Project: termlogs
 URL: github.com/orme292/termlogs
-Author: Andrew orme (github.com/orme292)
+Author: Andrew Orme (github.com/orme292)
 License: MIT
 
 This module provides functions to determine the directory path for iTerm2
@@ -29,21 +29,22 @@ from pathlib import Path
 DEFAULT_PATH = "~/.termlogs"
 DEFAULT_LOG_PATH = "~/session_logs"
 
+
 def get_session_logs_path(override: str = None) -> Path:
     path: Path
 
-    # if the override is empty or none, then read from the config file
-    # the config file is always at the default location specified in
-    # DEFAULT_PATH
     if override is None or override == "":
+        # if the override is empty or none, then read from the config file
+        # the config file is always at the default location specified in
+        # DEFAULT_PATH
         config = configparser.ConfigParser()
         config.read(os.path.expanduser(DEFAULT_PATH))
         try:
             path = Path(config["settings"]["session_logs_path"])
         except KeyError:
             raise Exception(f"session_logs_path not found in [settings] section of {DEFAULT_PATH}")
-    # if an override is given, then we use that
     else:
+        # if an override is given, then we use that
         path = Path(os.path.expanduser(override))
 
     # check whether the path is a valid directory, otherwise fail
@@ -59,5 +60,5 @@ def get_session_logs_path(override: str = None) -> Path:
         except OSError as e:
             raise Exception(f"Could not create directory: {path} {e}")
 
-    # just return the path
+    # return the path
     return path
