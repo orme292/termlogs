@@ -3,9 +3,11 @@ from click_option_group import optgroup, RequiredMutuallyExclusiveOptionGroup
 from datetime import datetime
 from pathlib import Path
 from typing import Tuple
+import json
 
 import termlogs as t
 import termlogsx as tx
+from termlogs.output import screen
 
 NOW = datetime.now()
 DEFAULT_START = datetime(1970, 1, 1)
@@ -127,6 +129,10 @@ def grep(dir_: str, string_: str, start: str, end: str, is_regex: bool, match_ca
         print("Error: Cannot specify both --ahead or --behind and --surround.")
         exit(0)
 
+    if surround:
+        ahead = surround
+        behind = surround
+
     if is_regex and match_case:
         print("-m/--match-case is ignored when using --is-regex/-r")
 
@@ -157,19 +163,31 @@ def grep(dir_: str, string_: str, start: str, end: str, is_regex: bool, match_ca
 
     print(f"Found {len(files)} matching files.\n")
 
-    results = tx.grep.grep_search(files, string_, start=start_ts, end=end_ts,
-                        ahead_buffer=ahead, behind_buffer=behind, is_regex=is_regex, match_case=match_case)
+    dest = tx.fileout.new_temp_file()
+    MATCHDOWN = "↓"
 
-    for file_path, matches in results.items():
-        print(f"\n=== {file_path} ===")
-        for match in matches:
-            print(f"--- Match {match['match_number']} ---")
-            for line in match["lines"]:
-                ts = line["timestamp"]
-                content = line["content"]
-                marker = ">>> MATCH <<<" if line.get("matched") else ""
-                print(f"[{ts}] {marker} {content}")
+    print(f"Searching for \"{string_}\" in {len(files)} files...")
 
+    for file in files:
+        results = tx.grep.grep_search(file, search=string_, behind=behind, ahead=ahead)
+        lines: list[str] = [f"=== {file} ==="]
+        for group, result in results.items():
+            lines.append(f" --- Match set {group} ---")
+            for each in result:
+                if each['match']:
+                    lines.append(MATCHDOWN * (len(each['timestamp']) + 4 + len(each['content'])))
+                lines.append(f"[{each['timestamp']}]: {each['content']}")
+            lines.append("\n")
+            tx.fileout.save(dest, lines)
+
+    response = input(f"View results in {dest}? [y/N]: ").strip().lower()
+    if response == "y":
+        print(f"Opening {dest}...")
+        tx.fileout.open_file(dest)
+    else:
+        print(f"Results saved to {dest}.")
+
+    exit(0)
 
 if __name__ == "__main__":
     t.screen.print_header()
