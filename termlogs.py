@@ -12,6 +12,7 @@ from termlogs.output import screen
 NOW = datetime.now()
 DEFAULT_START = datetime(1970, 1, 1)
 
+
 @click.group()
 def cli() -> None:
     pass
@@ -118,27 +119,28 @@ def clean(max_mb: int, dir_: str) -> None:
 @optgroup.group("Output options")
 @optgroup.option("-l", "--screen", is_flag=True, help="Output to screen instead of temp file")
 @optgroup.group("Context options")
-@optgroup.option("-a", "--ahead", type=int, default=5, help="Lines to show ahead of result.")
-@optgroup.option("-b", "--behind", type=int, default=5, help="Lines to show behind result.")
-@optgroup.option("--surround", type=int, default=0, help="Lines to show before and after result.")
+@optgroup.option("-a", "--ahead", type=int, default=-1, help="Lines to show ahead of result.")
+@optgroup.option("-b", "--behind", type=int, default=-1, help="Lines to show behind result.")
+@optgroup.option("--surround", type=int, default=-1, help="Lines to show before and after result.")
 @optgroup.group("Directory options")
 @optgroup.option("--dir", "dir_", type=str, default="", help="Override session log directory")
 def grep(dir_: str, string_: str, start: str, end: str, is_regex: bool, match_case: bool, screen: bool, ahead: int,
-           behind: int, surround: int) -> None:
-    if (ahead or behind) and surround:
-        print("Error: Cannot specify both --ahead or --behind and --surround.")
+         behind: int, surround: int) -> None:
+    string_ = string_.strip().casefold() if not (match_case or is_regex) else string_.strip()
+    try:
+        buffers = get_buffer(ahead, behind, surround)
+    except ValueError as e:
+        print(f"CLI error: {e}")
         exit(0)
 
-    if surround:
-        ahead = surround
-        behind = surround
+    ahead = buffers[0]
+    behind = buffers[1]
 
     if is_regex and match_case:
         print("-m/--match-case is ignored when using --is-regex/-r")
 
-    log_dir = tx.cfg.get_session_logs_path(dir_)
-
     try:
+        log_dir = tx.cfg.get_session_logs_path(dir_)
         start_dt = tx.files.parse_cli_dt_input(start) if start else None
         end_dt = tx.files.parse_cli_dt_input(end) if end else None
     except Exception as e:
@@ -161,26 +163,36 @@ def grep(dir_: str, string_: str, start: str, end: str, is_regex: bool, match_ca
         print("No logs found in timeframe.")
         exit(0)
 
-    print(f"Found {len(files)} matching files.\n")
-
     dest = tx.fileout.new_temp_file()
-    MATCHDOWN = "↓"
 
     print(f"Searching for \"{string_}\" in {len(files)} files...")
 
+    MATCHDOWN: str = "↓"
+    count: int = 0
     for file in files:
-        results = tx.grep.grep_search(file, search=string_, behind=behind, ahead=ahead)
+        try:
+            results = tx.grep.grep_search(file, search=string_, behind=behind, ahead=ahead,
+                                          regex=is_regex, match_case=match_case)
+        except Exception as e:
+            print(f"Error: {e}")
+            continue
+
         lines: list[str] = [f"=== {file} ==="]
         for group, result in results.items():
             lines.append(f" --- Match set {group} ---")
             for each in result:
                 if each['match']:
+                    count += 1
                     lines.append(MATCHDOWN * (len(each['timestamp']) + 4 + len(each['content'])))
                 lines.append(f"[{each['timestamp']}]: {each['content']}")
             lines.append("\n")
             tx.fileout.save(dest, lines)
 
-    response = input(f"View results in {dest}? [y/N]: ").strip().lower()
+    if count <= 0:
+        print("No matches found.")
+        exit(0)
+
+    response = input(f"\nView results? [y/n]: ").strip().lower()
     if response == "y":
         print(f"Opening {dest}...")
         tx.fileout.open_file(dest)
@@ -188,6 +200,20 @@ def grep(dir_: str, string_: str, start: str, end: str, is_regex: bool, match_ca
         print(f"Results saved to {dest}.")
 
     exit(0)
+
+
+def get_buffer(ahead: int = -1, behind: int = -1, surround: int = -1) -> Tuple[int, int]:
+    if surround > -1:
+        return surround, surround
+    elif ahead > -1 and behind > -1:
+        return ahead, behind
+    elif ahead > -1:
+        return ahead, 0
+    elif behind > -1:
+        return 0, behind
+    else:
+        raise ValueError("Cannot specify --surround and --ahead or --behind.")
+
 
 if __name__ == "__main__":
     t.screen.print_header()

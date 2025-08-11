@@ -6,14 +6,19 @@ from typing import Dict, List
 from .parse import parse_line
 
 
-
-def grep_search(file: Path, search: str, behind: int, ahead: int) -> Dict:
+def grep_search(file: Path, search: str, behind: int, ahead: int, regex: bool = False, match_case: bool = False) -> Dict:
     file_results: dict = {}
-    pattern: type[re.Pattern[str]] = re.Pattern[str]
+    pattern: re.Pattern
     b_buffer: deque = deque(maxlen=behind)
     a_buffer: deque = deque()
     match_mode: bool = False
     match_group: int = 0
+
+    if regex:
+        try:
+            pattern = re.compile(search)
+        except re.error as e:
+            raise ValueError(f"Regex error: {e}")
 
     try:
         with open(file, "r", encoding="utf-8") as f:
@@ -23,7 +28,14 @@ def grep_search(file: Path, search: str, behind: int, ahead: int) -> Dict:
                 if not parsed:
                     continue
 
-                is_match = search.lower() in parsed["content"].lower()
+                if regex:
+                    is_match = pattern.search(parsed["content"]) is not None
+                else:
+                    if match_case:
+                        is_match = search in parsed["content"]
+                    else:
+                        is_match = search.lower() in parsed["content"].casefold()
+
 
                 if not match_mode:
 
@@ -59,6 +71,6 @@ def grep_search(file: Path, search: str, behind: int, ahead: int) -> Dict:
             file_results[match_group] = group_results
 
     except Exception as e:
-        print(f"Failure in {file}: {e}")
+        raise Exception(f"Error {file}: {e}")
 
     return file_results
