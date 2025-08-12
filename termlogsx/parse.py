@@ -22,10 +22,10 @@ def parse_line(line: str) -> dict:
     content = re.sub(r"^(%\s+)", "% ", match.group(4))
 
     timestamp_str = f"{date_part} {time_part} {ampm_part}"
-    try:
-        dt = datetime.strptime(timestamp_str, "%m/%d/%Y %I:%M:%S.%f %p")
-    except ValueError:
-        return {}
+    # try:
+    #     dt = datetime.strptime(timestamp_str, "%m/%d/%Y %I:%M:%S.%f %p")
+    # except ValueError:
+    #     return {}
 
     return {
         "timestamp": timestamp_str,

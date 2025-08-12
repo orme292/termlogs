@@ -3,7 +3,7 @@ from click_option_group import optgroup, RequiredMutuallyExclusiveOptionGroup
 from datetime import datetime
 from pathlib import Path
 from typing import Tuple
-import json
+import sys
 
 import termlogs as t
 import termlogsx as tx
@@ -126,6 +126,14 @@ def clean(max_mb: int, dir_: str) -> None:
 @optgroup.option("--dir", "dir_", type=str, default="", help="Override session log directory")
 def grep(dir_: str, string_: str, start: str, end: str, is_regex: bool, match_case: bool, screen: bool, ahead: int,
          behind: int, surround: int) -> None:
+    if screen:
+        print("Results printed to the screen will be saved in the session logs, which could cause false matches when"
+              "searching the logs in the future.")
+        response = input(f"\re you sure you want to print results to the screen? [y/n]: ").strip().lower()
+        if response != "y":
+            exit(0)
+        print('\n')
+
     string_ = string_.strip().casefold() if not (match_case or is_regex) else string_.strip()
     try:
         buffers = get_buffer(ahead, behind, surround)
@@ -171,7 +179,7 @@ def grep(dir_: str, string_: str, start: str, end: str, is_regex: bool, match_ca
     count: int = 0
     for file in files:
         try:
-            results = tx.grep.grep_search(file, search=string_, behind=behind, ahead=ahead,
+            results = tx.grep.grep_search(file, search=string_, start=start_dt, end=end_dt, behind=behind, ahead=ahead,
                                           regex=is_regex, match_case=match_case)
         except Exception as e:
             print(f"Error: {e}")
@@ -186,13 +194,13 @@ def grep(dir_: str, string_: str, start: str, end: str, is_regex: bool, match_ca
                     lines.append(MATCHDOWN * (len(each['timestamp']) + 4 + len(each['content'])))
                 lines.append(f"[{each['timestamp']}]: {each['content']}")
             lines.append("\n")
-            tx.fileout.save(dest, lines)
+            tx.screenout.output(sys.stdout, lines) if screen else tx.fileout.save(dest, lines)
 
     if count <= 0:
         print("No matches found.")
         exit(0)
 
-    response = input(f"\nView results? [y/n]: ").strip().lower()
+    response = input(f"\nView results? [y/n]: ").strip().lower() if not screen else exit(0)
     if response == "y":
         print(f"Opening {dest}...")
         tx.fileout.open_file(dest)

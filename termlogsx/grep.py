@@ -2,17 +2,21 @@ import re
 from datetime import datetime
 from pathlib import Path
 from collections import deque
-from typing import Dict, List
+from typing import Dict
 from .parse import parse_line
 
 
-def grep_search(file: Path, search: str, behind: int, ahead: int, regex: bool = False, match_case: bool = False) -> Dict:
+def grep_search(file: Path, search: str, behind: int, ahead: int, start: datetime,
+                end: datetime, regex: bool = False, match_case: bool = False) -> Dict:
     file_results: dict = {}
     pattern: re.Pattern
     b_buffer: deque = deque(maxlen=behind)
     a_buffer: deque = deque()
     match_mode: bool = False
     match_group: int = 0
+
+    if start > end:
+        raise ValueError("Start time cannot be greater than end time.")
 
     if regex:
         try:
@@ -28,6 +32,11 @@ def grep_search(file: Path, search: str, behind: int, ahead: int, regex: bool = 
                 if not parsed:
                     continue
 
+                dt = datetime.strptime(parsed["timestamp"], "%m/%d/%Y %I:%M:%S.%f %p")
+
+                if dt < start or dt > end:
+                    continue
+
                 if regex:
                     is_match = pattern.search(parsed["content"]) is not None
                 else:
@@ -35,7 +44,6 @@ def grep_search(file: Path, search: str, behind: int, ahead: int, regex: bool = 
                         is_match = search in parsed["content"]
                     else:
                         is_match = search.lower() in parsed["content"].casefold()
-
 
                 if not match_mode:
 
@@ -53,13 +61,16 @@ def grep_search(file: Path, search: str, behind: int, ahead: int, regex: bool = 
                 if match_mode:
 
                     if not is_match:
-                        a_buffer.append(parsed)
-                        if len(a_buffer) >= ahead:
+                        if len(a_buffer)+1 < ahead:
+                            a_buffer.append(parsed)
+
+                        if len(a_buffer)+1 >= ahead:
                             group_results = group_results + list(a_buffer)
                             a_buffer.clear()
                             file_results[match_group] = group_results
                             match_mode = False
                         continue
+
                     if is_match:
                         group_results = group_results + list(a_buffer) + [parsed]
                         parsed["match"] = True
