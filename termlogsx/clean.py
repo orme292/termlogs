@@ -2,23 +2,21 @@ import humanize
 import datetime
 from pathlib import Path
 from send2trash import send2trash
-from ..config import config
+
 from typing import Tuple
 
 
-def do(max_mb: int, dir_: str = "") -> None:
+def do(max_mb: int, dir_: Path) -> None:
     if max_mb <= 0: raise ValueError("Max size cannot be 0.")
     cleanup_logs(max_mb, dir_)
 
 
-def get_session_log_path(dir_: str = "") -> Path:
-    log_dir = config.get_session_logs_directory(dir_)
-    log_path = Path(log_dir)
-    if not log_path.exists():
-        raise FileNotFoundError(f"Log dir does not exist: {log_dir}")
-    if not log_path.is_dir():
-        raise Exception(f"Error: {log_dir} is not a valid directory.")
-    return log_path
+def get_session_log_path(dir_: Path = None) -> Path:
+    if not dir_.exists():
+        raise FileNotFoundError(f"Log dir does not exist: {dir_}")
+    if not dir_.is_dir():
+        raise Exception(f"Error: {dir_} is not a valid directory.")
+    return dir_
 
 
 def gather_session_log_files(log_path: Path) -> Tuple[list, int]:

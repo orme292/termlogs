@@ -4,10 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Tuple
 import sys
-
-import termlogs as t
 import termlogsx as tx
-from termlogs.output import screen
 
 NOW = datetime.now()
 DEFAULT_START = datetime(1970, 1, 1)
@@ -18,17 +15,29 @@ def cli() -> None:
     pass
 
 
+def confirm_open() -> bool:
+    response = input(f"\nView results? [y/n]: ").strip().lower()
+    if response != "y":
+        return False
+    print('\n')
+    return True
+
+
+def confirm_screen() -> bool:
+    print("Results printed to the screen will be saved in the session logs, which could cause false matches when"
+          "searching the logs in the future.")
+    response = input(f"\re you sure you want to print results to the screen? [y/n]: ").strip().lower()
+    if response != "y":
+        return False
+    print('\n')
+    return True
+
+
 def get_session_logs_directory(dir_: str) -> Path:
     try:
-        log_dir = t.config.get_session_logs_directory(dir_)
-    except KeyError as e:
-        print(f"Could not get session logs directory: {e}")
-        exit(0)
-    except FileNotFoundError as e:
-        print(f"Could not find session logs directory: {e}")
-        exit(0)
+        log_dir = tx.cfg.get_session_logs_path(dir_)
     except Exception as e:
-        print(f"Generic Error: {e}")
+        print(f"Error: {e}")
         exit(0)
 
     return log_dir
@@ -44,6 +53,10 @@ def get_session_logs_directory(dir_: str) -> Path:
               help="Number of hours to search past starting hour (1, 5, 12). Less than 72, defaults to 1")
 @click.option("-l", "--screen", is_flag=True, help="Output to screen instead of temp file")
 def time(dir_: str, year: int, month: int, day: int, hour: str, range_: int, screen: bool) -> None:
+    dest: Path
+
+    if screen and not confirm_screen(): exit(0)
+
     log_dir = get_session_logs_directory(dir_)
 
     try:
@@ -52,61 +65,47 @@ def time(dir_: str, year: int, month: int, day: int, hour: str, range_: int, scr
         print(f"Invalid time value: {e}")
         exit(0)
 
-    print(f"Searching session logs for {start_dt.strftime('%Y-%m-%d %I:%M %p')} "
-          f"to {end_dt.strftime('%Y-%m-%d %I:%M %p')}...")
-
-    files = t.scanner.find_logs_by_threshold(log_dir, start_dt, end_dt)
+    files = tx.files.find_logs(log_dir, start=start_dt, end=end_dt)
     print(f"Found {len(files)} matching files.\n")
 
-    # for each file, all matching lines should be returned
-    # then, to display the results, each day will have its own header
-    # then each line from the log falling under that day will be displayed with ONLY the timestamp.
-    # Something like:
-    #
-    # ===== July 24, 2025 =====
-    # [5:02:01 PM] $ .......
-    # [5:02:02 PM] $ .......
-    #
-    # ===== July 25, 2025 =====
-    # etc...
-    #
-    # parse file should return timestamp, line (if it matches the time range)
-    # and then, the output function should deal with this correctly.
-    # ds = datetime.strptime(timestamp, "%m/%d/%Y")
-    # ts = datetime.strptime(timestamp, "%I:%M:%S.%f %p")
-    results = {Tuple[str, str]}
+    if not screen: dest = tx.fileout.new_temp_file()
     for file in files:
-        print(f"{file}...")
-        matches = list(t.parser.parse_file(file, start_dt, end_dt))
-        if matches:
-            results[file] = matches
+        lines: list[str] = [f"=== {file} ==="]
+        results = tx.parse.parse_file(file)
+        for each in results:
+            lines.append(f"[{each['timestamp']}]: {each['content']}")
+        lines.append("\n")
+        tx.fileout.save(dest, lines) if not screen else tx.screenout.output(sys.stdout, lines)
 
-    if screen:
-        t.screen.output_by_group(results)
-        exit(0)
+    if screen: exit(0)
 
-    print("Generating results file...")
-    t.fo.output_to_file(results, "")
+    if confirm_open():
+        print(f"Opening {dest}...")
+        tx.fileout.open_file(dest)
+    else:
+        print(f"Results saved to {dest}.")
+
+    exit(0)
 
 
-@cli.command(help="Clean up session logs.")
-@click.option("--dir", "dir_", type=str, default="", help="Override session log directory")
-@click.option("--max-mb", type=int, default=1000,
-              help="The maximum size that log files in the session directory should consume.")
-def clean(max_mb: int, dir_: str) -> None:
-    log_dir = get_session_logs_directory(dir_)
-
-    try:
-        t.clean.do(max_mb, log_dir)
-    except FileNotFoundError as e:
-        print(f"FileNotFoundError: {e}")
-        exit(0)
-    except ValueError as e:
-        print(f"ValueError: {e}")
-        exit(0)
-    except Exception as e:
-        print(f"{e}")
-        exit(0)
+# @cli.command(help="Clean up session logs.")
+# @click.option("--dir", "dir_", type=str, default="", help="Override session log directory")
+# @click.option("--max-mb", type=int, default=1000,
+#               help="The maximum size that log files in the session directory should consume.")
+# def clean(max_mb: int, dir_: str) -> None:
+#     log_dir = get_session_logs_directory(dir_)
+#
+#     try:
+#         tx.clean.do(max_mb, log_dir)
+#     except FileNotFoundError as e:
+#         print(f"FileNotFoundError: {e}")
+#         exit(0)
+#     except ValueError as e:
+#         print(f"ValueError: {e}")
+#         exit(0)
+#     except Exception as e:
+#         print(f"{e}")
+#         exit(0)
 
 
 @cli.command("grep", help="Search session logs for a given string or regex.")
@@ -126,13 +125,9 @@ def clean(max_mb: int, dir_: str) -> None:
 @optgroup.option("--dir", "dir_", type=str, default="", help="Override session log directory")
 def grep(dir_: str, string_: str, start: str, end: str, is_regex: bool, match_case: bool, screen: bool, ahead: int,
          behind: int, surround: int) -> None:
-    if screen:
-        print("Results printed to the screen will be saved in the session logs, which could cause false matches when"
-              "searching the logs in the future.")
-        response = input(f"\re you sure you want to print results to the screen? [y/n]: ").strip().lower()
-        if response != "y":
-            exit(0)
-        print('\n')
+    if screen and not confirm_screen(): exit(0)
+
+    log_dir = get_session_logs_directory(dir_)
 
     string_ = string_.strip().casefold() if not (match_case or is_regex) else string_.strip()
     try:
@@ -144,11 +139,9 @@ def grep(dir_: str, string_: str, start: str, end: str, is_regex: bool, match_ca
     ahead = buffers[0]
     behind = buffers[1]
 
-    if is_regex and match_case:
-        print("-m/--match-case is ignored when using --is-regex/-r")
+    if is_regex and match_case: print("-m/--match-case is ignored when using --is-regex/-r")
 
     try:
-        log_dir = tx.cfg.get_session_logs_path(dir_)
         start_dt = tx.files.parse_cli_dt_input(start) if start else None
         end_dt = tx.files.parse_cli_dt_input(end) if end else None
     except Exception as e:
@@ -171,7 +164,7 @@ def grep(dir_: str, string_: str, start: str, end: str, is_regex: bool, match_ca
         print("No logs found in timeframe.")
         exit(0)
 
-    dest = tx.fileout.new_temp_file()
+    if not screen: dest = tx.fileout.new_temp_file()
 
     print(f"Searching for \"{string_}\" in {len(files)} files...")
 
@@ -224,6 +217,6 @@ def get_buffer(ahead: int = -1, behind: int = -1, surround: int = -1) -> Tuple[i
 
 
 if __name__ == "__main__":
-    t.screen.print_header()
+    tx.screenout.print_header()
 
     cli()

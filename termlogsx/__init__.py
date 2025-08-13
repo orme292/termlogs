@@ -1,2 +1,2 @@
 from . import config as cfg
-from . import files, fileout, grep, parse, screenout
+from . import clean, files, fileout, grep, parse, screenout
