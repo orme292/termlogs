@@ -6,8 +6,8 @@ from typing import Dict
 from .parse import parse_line
 
 
-def grep_search(file: Path, search: str, behind: int, ahead: int, start: datetime,
-                end: datetime, regex: bool = False, match_case: bool = False) -> Dict:
+def grep_search(file: Path, search: str, behind: int, ahead: int, start: datetime.timestamp,
+                end: datetime.timestamp, regex: bool = False, match_case: bool = False) -> Dict:
     file_results: dict = {}
     pattern: re.Pattern
     b_buffer: deque = deque(maxlen=behind)
@@ -32,7 +32,7 @@ def grep_search(file: Path, search: str, behind: int, ahead: int, start: datetim
                 if not parsed:
                     continue
 
-                dt = datetime.strptime(parsed["timestamp"], "%m/%d/%Y %I:%M:%S.%f %p")
+                dt = datetime.strptime(parsed["timestamp"], "%m/%d/%Y %I:%M:%S.%f %p").timestamp()
 
                 if dt < start or dt > end:
                     continue

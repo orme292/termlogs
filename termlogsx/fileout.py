@@ -17,7 +17,7 @@ def new_temp_file() -> Path:
 
 def save(file: Path, data: list):
     try:
-        with open(file, "w", encoding="utf-8") as f:
+        with open(file, "a", encoding="utf-8") as f:
             for line in data:
                 f.write(line)
                 f.write("\n")
